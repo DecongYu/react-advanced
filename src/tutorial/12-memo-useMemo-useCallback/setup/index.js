@@ -1,48 +1,81 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useFetch } from '../../9-custom-hooks/final/2-useFetch'
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useFetch } from "../../9-custom-hooks/final/2-useFetch";
 
-// ATTENTION!!!!!!!!!!
-// I SWITCHED TO PERMANENT DOMAIN
-const url = 'https://course-api.com/javascript-store-products'
-
+const url = "https://course-api.com/javascript-store-products";
 // every time props or state changes, component re-renders
 
+const calculateMostExpensive = (data) => {
+	return (
+		data.reduce((total, item) => {
+			const price = item.fields.price;
+			if (price >= total) {
+				total = price;
+			}
+			return total;
+		}, 0) / 100
+	);
+};
 const Index = () => {
-  const { products } = useFetch(url)
-  const [count, setCount] = useState(0)
+	const { products } = useFetch(url);
+	const [count, setCount] = useState(0);
+	const [cart, setCart] = useState(0);
 
-  return (
-    <>
-      <h1>Count : {count}</h1>
-      <button className='btn' onClick={() => setCount(count + 1)}>
-        click me
-      </button>
-      <BigList products={products} />
-    </>
-  )
-}
+	// useCallback function will not target [cart] value
+	// will not triger re-render rest of the items in the BigList
+	const addToCart = useCallback(() => {
+		setCart(cart + 1);
+	}, [cart]);
 
-const BigList = ({ products }) => {
-  return (
-    <section className='products'>
-      {products.map((product) => {
-        return <SingleProduct key={product.id} {...product}></SingleProduct>
-      })}
-    </section>
-  )
-}
+	// useMemo will only do the following calculation when [products] changed
+	const mostExpensive = useMemo(
+		() => calculateMostExpensive(products),
+		[products]
+	);
 
-const SingleProduct = ({ fields }) => {
-  let { name, price } = fields
-  price = price / 100
-  const image = fields.image[0].url
+	return (
+		<>
+			<h1>Count : {count}</h1>
+			<button className='btn' onClick={() => setCount(count + 1)}>
+				click me
+			</button>
+			<h1 style={{ marginTop: "3rem" }}>cart : {cart}</h1>
+			<h2>Most Expensive : ${mostExpensive}</h2>
+			<BigList products={products} addToCart={addToCart} />
+		</>
+	);
+};
 
-  return (
-    <article className='product'>
-      <img src={image} alt={name} />
-      <h4>{name}</h4>
-      <p>${price}</p>
-    </article>
-  )
-}
-export default Index
+// React.memo check if the prop and state changed. if not, do not re-render
+const BigList = React.memo(({ products, addToCart }) => {
+	useEffect(() => {
+		console.count("single called");
+	});
+	return (
+		<section className='products'>
+			{products.map((product) => {
+				return (
+					<SingleProduct
+						key={product.id}
+						{...product}
+						addToCart={addToCart}></SingleProduct>
+				);
+			})}
+		</section>
+	);
+});
+
+const SingleProduct = ({ fields, addToCart }) => {
+	let { name, price } = fields;
+	price = price / 100;
+	const image = fields.image[0].url;
+
+	return (
+		<article className='product'>
+			<img src={image} alt={name} />
+			<h4>{name}</h4>
+			<p>${price}</p>
+			<button onClick={addToCart}>add to cart</button>
+		</article>
+	);
+};
+export default Index;
